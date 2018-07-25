@@ -3,11 +3,11 @@ import {Network, Networks} from 'stellar-sdk';
 const NETWORK = {
   available: {
     test: {
-      horizonURL: 'https://horizon-testnet.stellar.org',
+      horizonURL: 'https://node.fable.id',
       networkPassphrase: Networks.TESTNET
     },
     public: {
-      horizonURL: 'https://horizon.stellar.org',
+      horizonURL: 'https://main.fable.id',
       networkPassphrase: Networks.PUBLIC
     }
   },
