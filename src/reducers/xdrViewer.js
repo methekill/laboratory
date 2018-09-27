@@ -1,11 +1,12 @@
 import {combineReducers} from 'redux';
-import {UPDATE_XDR_INPUT, UPDATE_XDR_TYPE} from '../actions/xdrViewer';
+import {UPDATE_XDR_INPUT, UPDATE_XDR_TYPE, FETCHED_SIGNERS_SUCCESS, FETCHED_SIGNERS_FAIL, FETCHED_SIGNERS_START} from '../actions/xdrViewer';
 import {LOAD_STATE} from '../actions/routing';
-import url from 'url';
+import {SET_PARAMS} from "../actions/network";
 
 const routing = combineReducers({
   input,
   type,
+  fetchedSigners,
 });
 
 export default routing;
@@ -35,5 +36,19 @@ function type(state = 'TransactionEnvelope', action) {
     return action.xdrType;
   }
 
+  return state;
+}
+
+function fetchedSigners(state = null, action) {
+  switch (action.type) {
+  case FETCHED_SIGNERS_SUCCESS:
+    return action.result;
+  case FETCHED_SIGNERS_FAIL:
+    return "ERROR";
+  case FETCHED_SIGNERS_START:
+    return "PENDING";
+  case SET_PARAMS:
+    return null;
+  }
   return state;
 }

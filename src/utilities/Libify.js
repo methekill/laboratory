@@ -49,7 +49,7 @@ let castIntOrUndefined = function(value) {
   if (typeof value === 'number') {
     return value;
   }
-  if (_.isString(value) && value.match(/^[0-9]*$/g)) {
+  if (_.isString(value) && value.match(/^[0-9]+$/g)) {
     return Number(value);
   }
   return undefined;
@@ -283,6 +283,14 @@ Libify.Operation.manageData = function(opts) {
   })
 }
 
+Libify.Operation.bumpSequence = function(opts) {
+  assertNotEmpty(opts.bumpTo, 'Sequence number should be set');
+  return Sdk.Operation.bumpSequence({
+    bumpTo: opts.bumpTo,
+    source: opts.sourceAccount,
+  })
+}
+
 // buildTransaction is not something found js-stellar libs but acts as an
 // abstraction to building a transaction with input data in the same format
 // as the reducers
@@ -298,6 +306,11 @@ Libify.buildTransaction = function(attributes, operations, networkObj) {
 
     let opts = {};
     if (attributes.fee !== '') {
+      const MAX_UINT32 = Math.pow( 2, 32 ) - 1;
+      if (parseInt(attributes.fee) > MAX_UINT32) {
+        throw Error(`Base Fee: too large (invalid 32-bit unisigned integer)`);
+      }
+      
       opts.fee = attributes.fee;
     }
 
