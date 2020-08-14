@@ -44,5 +44,6 @@ export default function For(props) {
         key="order"
         />
     </OptionsTablePair>
+    {props.children}
   </div>
 }

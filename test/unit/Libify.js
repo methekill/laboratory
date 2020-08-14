@@ -1,8 +1,9 @@
 import React from 'react';
-import {xdr, Transaction, Operation} from 'stellar-sdk';
+import {xdr, Transaction, Operation, Networks} from 'stellar-sdk';
 import Libify from '../../src/utilities/Libify';
 
 describe('Libify.buildTransaction', () => {
+
   context('when building a simple transaction', () => {
     let simpleTransaction = Libify.buildTransaction({
       sourceAccount: 'GCNZ6DLRLBDUUTXMGKHMCIG44I6VSZ4U6ACY6CSICK5DFVRATYJTAEVT',
@@ -19,8 +20,9 @@ describe('Libify.buildTransaction', () => {
         },
         name: 'createAccount'
       }
-    ]);
-    let decodedTx = new Transaction(simpleTransaction.xdr);
+    ], Networks.TESTNET);
+    expect(simpleTransaction.errors).to.deep.equal([]);
+    let decodedTx = new Transaction(simpleTransaction.xdr, Networks.TESTNET);
 
     it('contains specified source account', () => {
       expect(decodedTx.source).to.equal('GCNZ6DLRLBDUUTXMGKHMCIG44I6VSZ4U6ACY6CSICK5DFVRATYJTAEVT');
@@ -31,7 +33,7 @@ describe('Libify.buildTransaction', () => {
     });
 
     it('contains specified fee', () => {
-      expect(decodedTx.fee).to.equal(42);
+      expect(decodedTx.fee).to.equal("42");
     });
 
     it('contains no memo', () => {
@@ -75,7 +77,29 @@ describe('Libify.buildTransaction', () => {
       },
       {
         id: 2,
-        name: 'pathPayment',
+        name: 'pathPaymentStrictSend',
+        attributes: {
+          destination: 'GARYDU5S4E3HS2XOSDY5ELOCBGGXFLPFQHMO42JIWOMCR5QGFDHBNJEW',
+          sendAsset: {
+            type: 'credit_alphanum12',
+            code: 'MONSTER',
+            issuer: 'GCOXOGREKTFJJJP2RTZHRHQC6IB7AHPSBQGUAVIMDMTQNJZSNLCJLT2G'
+          },
+          sendAmount: '5',
+          path: [
+            {
+              type: 'native'
+            }
+          ],
+          destAsset: {
+            type: 'native'
+          },
+          destMin: '345678'
+        }
+      },
+      {
+        id: 3,
+        name: 'pathPaymentStrictReceive',
         attributes: {
           destination: 'GARYDU5S4E3HS2XOSDY5ELOCBGGXFLPFQHMO42JIWOMCR5QGFDHBNJEW',
           sendAsset: {
@@ -96,8 +120,8 @@ describe('Libify.buildTransaction', () => {
         }
       },
       {
-        id: 3,
-        name: 'manageOffer',
+        id: 4,
+        name: 'manageSellOffer',
         attributes: {
           selling: {
             type: 'native'
@@ -113,8 +137,8 @@ describe('Libify.buildTransaction', () => {
         }
       },
       {
-        id: 4,
-        name: 'createPassiveOffer',
+        id: 5,
+        name: 'createPassiveSellOffer',
         attributes: {
           selling: {
             type: 'native'
@@ -129,7 +153,7 @@ describe('Libify.buildTransaction', () => {
         }
       },
       {
-        id: 5,
+        id: 6,
         name: 'setOptions',
         attributes: {
           inflationDest: 'GAJNYCPCVHNM724OKKJ3UOPLLHP7LUEODUMXLE4RZ74OXAYENY5BV4CZ',
@@ -147,7 +171,7 @@ describe('Libify.buildTransaction', () => {
         }
       },
       {
-        id: 6,
+        id: 7,
         name: 'changeTrust',
         attributes: {
           asset: {
@@ -158,7 +182,7 @@ describe('Libify.buildTransaction', () => {
         }
       },
       {
-        id: 7,
+        id: 8,
         name: 'allowTrust',
         attributes: {
           trustor: 'GB6I3Y3F24UMOJ326W3Z4AHRI3VKXNEFSDPZ7CCSHHYD5ML7RDEJYHJR',
@@ -167,17 +191,12 @@ describe('Libify.buildTransaction', () => {
         }
       },
       {
-        id: 8,
+        id: 9,
         name: 'accountMerge',
         attributes: {
           destination: 'GD4WIAWVK7TCHDLIVB7YQ3P45PGPPK4RD52FZVS52TJE3224R566G45L',
           sourceAccount: 'GDNG66PN7A4OCNY2XOAWL4NVO6ALFRP2RCGOZ2WMGMHBZCWM5RXWVHPU'
         }
-      },
-      {
-        id: 9,
-        name: 'inflation',
-        attributes: {}
       },
       {
         id: 10,
@@ -186,11 +205,29 @@ describe('Libify.buildTransaction', () => {
           name: 'wow',
           value: 'such test'
         }
+      },
+      {
+        id: 11,
+        name: 'manageBuyOffer',
+        attributes: {
+          selling: {
+            type: 'native'
+          },
+          buying: {
+            type: 'credit_alphanum12',
+            code: 'ALLTHETHINGS',
+            issuer: 'GCVUWFL4USUCGHCPCOLPMORYCI5F37IM3CEIQM55IQ3ZNDSYCQIE2534'
+          },
+          buyAmount: '0',
+          price: '4.417',
+          offerId: '0'
+        }
       }
-    ]);
+    ], Networks.TESTNET);
     let decodedTx = xdr.TransactionEnvelope.fromXDR(largeTransaction.xdr, 'base64');
+    const operations = decodedTx.value().tx().operations();
     let opAtIndex = (index) => {
-      return Operation.fromXDRObject(decodedTx._attributes.tx._attributes.operations[index]);
+      return Operation.fromXDRObject(operations[index]);
     };
 
     describe('createAccount operation at index 0', () => {
@@ -218,9 +255,9 @@ describe('Libify.buildTransaction', () => {
       })
     })
 
-    describe('pathPayment operation at index 2', () => {
-      it('is of type pathPayment', () => {
-        expect(opAtIndex(2).type).to.equal('pathPayment');
+    describe('pathPaymentStrictSend operation at index 2', () => {
+      it('is of type pathPaymentStrictSend', () => {
+        expect(opAtIndex(2).type).to.equal('pathPaymentStrictSend');
       })
       it('contains native destination assset', () => {
         expect(opAtIndex(2).destAsset.code).to.equal('XLM')
@@ -230,72 +267,87 @@ describe('Libify.buildTransaction', () => {
       })
     })
 
-    describe('manageOffer operation at index 3', () => {
-      it('is of type manageOffer', () => {
-        expect(opAtIndex(3).type).to.equal('manageOffer');
+    describe('pathPaymentStrictReceive operation at index 3', () => {
+      it('is of type pathPaymentStrictReceive', () => {
+        expect(opAtIndex(3).type).to.equal('pathPaymentStrictReceive');
+      })
+      it('contains native destination assset', () => {
+        expect(opAtIndex(3).destAsset.code).to.equal('XLM')
+      })
+      it('contains MONSTER send asset', () => {
+        expect(opAtIndex(3).sendAsset.code).to.equal('MONSTER')
+      })
+    })
+
+    describe('manageSellOffer operation at index 4', () => {
+      it('is of type manageSellOffer', () => {
+        expect(opAtIndex(4).type).to.equal('manageSellOffer');
       })
       it('contains specified price', () => {
-        expect(opAtIndex(3).price).to.equal('4.417')
+        expect(opAtIndex(4).price).to.equal('4.417')
       })
     })
 
-    describe('createPassiveOffer operation at index 4', () => {
-      it('is of type createPassiveOffer', () => {
-        expect(opAtIndex(4).type).to.equal('createPassiveOffer');
+    describe('manageBuyOffer operation at index 11', () => {
+      it('is of type manageBuyOffer', () => {
+        expect(opAtIndex(11).type).to.equal('manageBuyOffer');
+      })
+      it('contains specified price', () => {
+        expect(opAtIndex(11).price).to.equal('4.417')
+      })
+    })
+
+    describe('createPassiveSellOffer operation at index 5', () => {
+      it('is of type createPassiveSellOffer', () => {
+        expect(opAtIndex(5).type).to.equal('createPassiveSellOffer');
       })
       it('contains specified amount', () => {
-        expect(opAtIndex(4).amount).to.equal('5')
+        expect(opAtIndex(5).amount).to.equal('5.0000000')
       })
     })
 
-    describe('setOptions operation at index 5', () => {
+    describe('setOptions operation at index 6', () => {
       it('is of type setOptions', () => {
-        expect(opAtIndex(5).type).to.equal('setOptions');
+        expect(opAtIndex(6).type).to.equal('setOptions');
       })
       it('contains specified clearFlags', () => {
-        expect(opAtIndex(5).clearFlags).to.equal(6)
+        expect(opAtIndex(6).clearFlags).to.equal(6)
       })
       it('contains specified signer pubKey', () => {
-        expect(opAtIndex(5).signer.ed25519PublicKey).to.equal('GA2IKCQR3WNN5W5446MU5UZZW7UIHWQN6UVJCAXRMRH4JV3QSOABQXI4')
+        expect(opAtIndex(6).signer.ed25519PublicKey).to.equal('GA2IKCQR3WNN5W5446MU5UZZW7UIHWQN6UVJCAXRMRH4JV3QSOABQXI4')
       })
       it('contains specified homeDomain', () => {
-        expect(opAtIndex(5).homeDomain).to.equal('example.com')
+        expect(opAtIndex(6).homeDomain).to.equal('example.com')
       })
       it('contains no high threshold', () => {
-        expect(opAtIndex(5).highThreshold).to.be.a('undefined')
+        expect(opAtIndex(6).highThreshold).to.be.a('undefined')
       })
     })
 
-    describe('changeTrust operation at index 6', () => {
+    describe('changeTrust operation at index 7', () => {
       it('is of type changeTrust', () => {
-        expect(opAtIndex(6).type).to.equal('changeTrust');
+        expect(opAtIndex(7).type).to.equal('changeTrust');
       })
       it('contains specified asset issuer', () => {
-        expect(opAtIndex(6).line.issuer).to.equal('GB6I3Y3F24UMOJ326W3Z4AHRI3VKXNEFSDPZ7CCSHHYD5ML7RDEJYHJR')
+        expect(opAtIndex(7).line.issuer).to.equal('GB6I3Y3F24UMOJ326W3Z4AHRI3VKXNEFSDPZ7CCSHHYD5ML7RDEJYHJR')
       })
     })
 
-    describe('allowTrust operation at index 7', () => {
+    describe('allowTrust operation at index 8', () => {
       it('is of type allowTrust', () => {
-        expect(opAtIndex(7).type).to.equal('allowTrust');
+        expect(opAtIndex(8).type).to.equal('allowTrust');
       })
       it('contains true authorize flag', () => {
-        expect(opAtIndex(7).authorize).to.equal(true)
+        expect(opAtIndex(8).authorize).to.equal(1)
       })
     })
 
-    describe('accountMerge operation at index 8', () => {
+    describe('accountMerge operation at index 9', () => {
       it('is of type accountMerge', () => {
-        expect(opAtIndex(8).type).to.equal('accountMerge');
+        expect(opAtIndex(9).type).to.equal('accountMerge');
       })
       it('contains merge destination', () => {
-        expect(opAtIndex(8).destination).to.equal('GD4WIAWVK7TCHDLIVB7YQ3P45PGPPK4RD52FZVS52TJE3224R566G45L')
-      })
-    })
-
-    describe('inflation operation at index 9', () => {
-      it('is of type inflation', () => {
-        expect(opAtIndex(9).type).to.equal('inflation');
+        expect(opAtIndex(9).destination).to.equal('GD4WIAWVK7TCHDLIVB7YQ3P45PGPPK4RD52FZVS52TJE3224R566G45L')
       })
     })
 

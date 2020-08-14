@@ -1,9 +1,9 @@
-import _ from 'lodash';
-import {Transaction} from 'stellar-sdk';
+import trim from 'lodash/trim';
+import { xdr } from 'stellar-sdk';
 import validateBase64 from './validateBase64';
 
-export default function validateTxXdr(input) {
-  input = _.trim(input);
+export default function validateTxXdr(input, networkPassphrase) {
+  input = trim(input);
 
   let base64Validation = validateBase64(input);
   if (base64Validation.result !== 'success') {
@@ -11,7 +11,7 @@ export default function validateTxXdr(input) {
   }
 
   try {
-    new Transaction(input);
+    xdr.TransactionEnvelope.fromXDR(input, 'base64');
     return {
       result: 'success',
       message: 'Valid Transaction Envelope XDR',
@@ -20,6 +20,7 @@ export default function validateTxXdr(input) {
     return {
       result: 'error',
       message: 'Unable to parse input XDR into Transaction Envelope',
+      originalError: e
     };
   }
 }

@@ -1,9 +1,10 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 import {connect} from 'react-redux';
+import map from 'lodash/map'
 import PubKeyPicker from './FormComponents/PubKeyPicker.js';
 import {getOperation} from '../data/operations';
 import {
-  addOperation,
   removeOperation,
   updateOperationType,
   updateOperationAttributes,
@@ -19,7 +20,7 @@ class OperationsBuilder extends React.Component {
   }
   render() {
     return <div className="TransactionOperations">
-      {_.map(this.props.ops, (op, index) => {
+      {map(this.props.ops, (op, index) => {
         return operation(this.props.ops, index, this.props.dispatch);
       })}
     </div>
@@ -77,7 +78,7 @@ let operation = (ops, index, dispatch) => {
       {removeLink}
     </div>
     <div className="TransactionOp__config TransactionOpConfig optionsTable">
-      <OptionsTablePair label={<span>Operation Type <HelpMark href="https://www.stellar.org/developers/learn/concepts/list-of-operations.html" /></span>}>
+      <OptionsTablePair label={<span>Operation Type <HelpMark href="https://developers.stellar.org/docs/start/list-of-operations/" /></span>}>
         <OperationTypePicker value={op.name} onUpdate={(value) => {
           dispatch(updateOperationType(op.id, value))
         }} />
@@ -109,7 +110,7 @@ class BlurNumberInput extends React.Component {
       currentValue: props.value,
     }
   }
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     this.setState({
       currentValue: nextProps.value
     });
@@ -136,6 +137,6 @@ class BlurNumberInput extends React.Component {
   }
 }
 BlurNumberInput.propTypes = {
-  onUpdate: React.PropTypes.func.isRequired,
-  value: React.PropTypes.number.isRequired,
+  onUpdate: PropTypes.func.isRequired,
+  value: PropTypes.number.isRequired,
 };

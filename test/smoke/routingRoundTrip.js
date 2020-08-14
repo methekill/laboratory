@@ -1,4 +1,3 @@
-import _ from 'lodash';
 import {stateToQueryObj, queryObjToLoadStatePayload} from '../../src/utilities/stateSerializer';
 import SLUG from '../../src/constants/slug';
 import rootReducer from '../../src/reducers/root';
@@ -56,6 +55,10 @@ describe('routing system', () => {
     describe('in a default scenario', () => {
       itCircularlyConvertsState(SLUG.TXBUILDER, {
         network: 'test',
+        params: dehydrate({
+          attributes: {fee: '100'},
+          feeBumpAttributes:{'maxFee':'100'},
+        })
       });
     });
 
@@ -66,16 +69,19 @@ describe('routing system', () => {
           attributes: {
             sourceAccount: 'somewhere',
             sequence: 'over',
+            fee: '100',
             memoType: 'MEMO_TEXT',
             memoContent: 'the'
           },
+          feeBumpAttributes:{'maxFee':'100'},
+          txType: 'FEE_BUMP',
           operations: [{
             id: 0,
             attributes: {
               destination: 'rainbow'
             },
             name: 'payment'
-          }]
+          }],
         }),
       });
     });

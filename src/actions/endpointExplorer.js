@@ -1,5 +1,4 @@
 import axios from 'axios';
-import _ from 'lodash';
 import dispatchInNewStack from '../utilities/dispatchInNewStack';
 import {CallBuilder} from 'stellar-sdk/lib/call_builder';
 import URI from 'urijs';
@@ -46,6 +45,7 @@ export function submitRequest(request) {
     dispatch({
       type: START_REQUEST,
       id,
+      isStreaming: Boolean(request.streaming)
     });
 
     if (request.streaming) {
@@ -55,6 +55,7 @@ export function submitRequest(request) {
           type: UPDATE_REQUEST,
           id,
           body: message,
+          isStreaming: true
         })
       })
     } else {
@@ -71,8 +72,8 @@ export function submitRequest(request) {
           dispatchInNewStack(dispatch, {
             type: ERROR_REQUEST,
             id,
-            errorStatus: e.status,
-            body: e.data,
+            errorStatus: e.response.status,
+            body: e.response.data,
           })
         });
     }

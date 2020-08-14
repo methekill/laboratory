@@ -82,3 +82,39 @@ export function fetchSequence(accountId, horizonBaseUrl) {
       .catch(r => dispatch({type: FETCH_SEQUENCE_FAIL, payload: r}))
   }
 }
+
+
+export const FETCH_BASE_FEE = 'FETCH_BASE_FEE';
+export const FETCH_BASE_FEE_FAIL = 'FETCH_BASE_FEE_FAIL';
+export const FETCH_BASE_FEE_SUCCESS = 'FETCH_BASE_FEE_SUCCESS';
+export function fetchBaseFee(horizonBaseUrl) {
+  return dispatch => {
+    dispatch({
+      type: FETCH_BASE_FEE
+    });
+    axios.get(horizonBaseUrl + '/fee_stats')
+      .then(r => dispatch({
+        type: FETCH_BASE_FEE_SUCCESS,
+        base_fee: r.data.fee_charged.mode
+      }))
+      .catch(r => dispatch({type: FETCH_BASE_FEE_FAIL, payload: r}))
+  }
+}
+
+export const UPDATE_TX_TYPE = 'UPDATE_TX_TYPE';
+export function updateTxType(txType) {
+  return {
+    type: UPDATE_TX_TYPE,
+    txType,
+  }
+}
+
+export const UPDATE_FEE_BUMP_ATTRIBUTE = 'UPDATE_FEE_BUMP_ATTRIBUTE';
+export function updateFeeBumpAttribute(newAttribute) {
+  return {
+    type: UPDATE_FEE_BUMP_ATTRIBUTE,
+    newAttribute,
+  }
+}
+
+

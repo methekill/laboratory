@@ -1,7 +1,10 @@
-import {dehydrate, rehydrate} from './hydration';
-import _ from 'lodash';
+import assign from 'lodash/assign';
+import each from 'lodash/each';
+import has from 'lodash/has';
+import size from 'lodash/size';
+import {dehydrate} from './hydration';
 import SLUG from '../constants/slug';
-import NETWORK from '../constants/network';
+import TX_TYPES from '../constants/transaction_types';
 
 // The state serializer converts the state relevant to a specific page into an object.
 // This object is then used to build the routing url.
@@ -19,7 +22,7 @@ import NETWORK from '../constants/network';
 // Incomplete ones are useful because it lets us build URLs without needing the
 // whole state tree (such as in ../utilities/linkBuilder.js).
 export function stateToQueryObj(slug, state) {
-  return _.assign({},
+  return assign({},
     serializePageSpecificState(slug, state),
     serializeNetworkState(state),
   );
@@ -27,7 +30,7 @@ export function stateToQueryObj(slug, state) {
 
 function serializeNetworkState(state) {
   // Only return something if we were passed the current network
-  if (_.has(state, 'network')) {
+  if (has(state, 'network')) {
     if (state.network.current.name == "custom") {
       return {
         network: state.network.current.name,
@@ -51,32 +54,43 @@ function serializePageSpecificState(slug, state) {
       if (state.endpointExplorer.currentEndpoint) {
         endpointsResult.endpoint = state.endpointExplorer.currentEndpoint;
       }
-      if (_.size(state.endpointExplorer.pendingRequest.values) > 0) {
+      if (size(state.endpointExplorer.pendingRequest.values) > 0) {
         endpointsResult.values = dehydrate(state.endpointExplorer.pendingRequest.values);
       }
       return endpointsResult;
     case SLUG.TXBUILDER:
       let txbuilderResult = {};
       let txbuilderAttributes = assignNonEmpty({}, state.transactionBuilder.attributes);
-      if (_.size(txbuilderAttributes) > 0) {
+      if (size(txbuilderAttributes) > 0) {
         txbuilderResult.attributes = txbuilderAttributes;
       }
 
-      let firstOpEmpty = state.transactionBuilder.operations[0].name === '';
-      if (state.transactionBuilder.operations.length > 1 || !firstOpEmpty) {
-        txbuilderResult.operations = state.transactionBuilder.operations;
+      let feeBumpAttributes = assignNonEmpty({}, state.transactionBuilder.feeBumpAttributes);
+      if (size(feeBumpAttributes) > 0) {
+        txbuilderResult.feeBumpAttributes = feeBumpAttributes;
       }
 
-      if (_.has(txbuilderResult, 'attributes.memoType') &&
+      if (state.transactionBuilder.txType !== TX_TYPES.REGULAR) {
+        txbuilderResult.txType = state.transactionBuilder.txType;
+      }
+      
+      if (state.transactionBuilder.operations){
+        let firstOpEmpty = state.transactionBuilder.operations[0].name === '';
+        if (state.transactionBuilder.operations.length > 1 || !firstOpEmpty) {
+          txbuilderResult.operations = state.transactionBuilder.operations;
+        }
+      }
+
+      if (has(txbuilderResult, 'attributes.memoType') &&
           txbuilderResult.attributes.memoType === 'MEMO_NONE') {
         delete txbuilderResult.attributes.memoType;
       }
 
-      if (_.size(txbuilderResult.attributes) === 0) {
+      if (size(txbuilderResult.attributes) === 0) {
         delete txbuilderResult.attributes;
       }
 
-      if (_.size(txbuilderResult) === 0) {
+      if (size(txbuilderResult) === 0) {
         return {};
       }
       return {
@@ -90,7 +104,7 @@ function serializePageSpecificState(slug, state) {
         txsignerResult.xdr = state.transactionSigner.xdr;
       }
       return txsignerResult;
-    case 'xdr-viewer':
+    case SLUG.XDRVIEWER:
       let xdrViewer = {};
       if (state.xdrViewer.input !== '') {
         xdrViewer.input = state.xdrViewer.input;
@@ -99,6 +113,12 @@ function serializePageSpecificState(slug, state) {
         xdrViewer.type = state.xdrViewer.type;
       }
       return xdrViewer;
+      case SLUG.TXSUBMITTER:
+      let txsubmitter = {};
+      if (state.xdrViewer.input !== '') {
+        txsubmitter.input = state.xdrViewer.input;
+      }
+      return txsubmitter;
     default:
       return {};
   }
@@ -107,7 +127,7 @@ function serializePageSpecificState(slug, state) {
 // Similar to Object.assign except it doesn't copy over non-empty ones such
 // as '' or undefined
 function assignNonEmpty(targetObj, inputObj) {
-  _.each(inputObj, (value, key) => {
+  each(inputObj, (value, key) => {
     if (value === '' || value === undefined) {
       return;
     }

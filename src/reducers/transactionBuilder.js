@@ -1,15 +1,24 @@
 import {combineReducers} from 'redux';
+import assign from 'lodash/assign'
+import filter from 'lodash/filter'
+import find from 'lodash/find'
+import findIndex from 'lodash/findIndex'
+import {BASE_FEE} from 'stellar-sdk'
 import {
   UPDATE_ATTRIBUTES,
   FETCH_SEQUENCE_START,
   FETCH_SEQUENCE_SUCCESS,
   FETCH_SEQUENCE_FAIL,
   RESET_TXBUILDER,
+  FETCH_BASE_FEE_SUCCESS,
+  FETCH_BASE_FEE_FAIL,
+  UPDATE_TX_TYPE,
+  UPDATE_FEE_BUMP_ATTRIBUTE,
 } from '../actions/transactionBuilder';
 import {LOAD_STATE} from '../actions/routing';
-import _ from 'lodash';
 import {rehydrate} from '../utilities/hydration';
 import SLUG from '../constants/slug';
+import TX_TYPES from '../constants/transaction_types';
 
 const defaultOperations = [{
   id: 0,
@@ -23,7 +32,7 @@ function operations(state = defaultOperations, action) {
     if (action.slug === SLUG.TXBUILDER) {
       if (action.queryObj.params) {
         // TODO: validate that this is actually a valid operations object
-        return rehydrate(action.queryObj.params).operations;
+        return rehydrate(action.queryObj.params).operations || defaultOperations;
       }
       return defaultOperations;
     }
@@ -35,7 +44,7 @@ function operations(state = defaultOperations, action) {
       attributes: {},
     });
   case 'REMOVE_OPERATION':
-    return _.filter(state.slice(), (op) => op.id != action.opId);
+    return filter(state.slice(), (op) => op.id != action.opId);
   case 'REORDER_OPERATION':
     return reorderOps(state, action.opId, action.toNth);
   case 'UPDATE_OPERATION_TYPE':
@@ -45,7 +54,7 @@ function operations(state = defaultOperations, action) {
     });
   case 'UPDATE_OPERATION_ATTRIBUTES':
     return updateOperation(state, action.opId, {
-      attributes: _.assign({}, getAttributes(state, action.opId), action.newAttributes),
+      attributes: assign({}, getAttributes(state, action.opId), action.newAttributes),
     });
   case RESET_TXBUILDER:
     return defaultOperations;
@@ -53,18 +62,18 @@ function operations(state = defaultOperations, action) {
   return state;
 }
 function getAttributes(state, opId) {
-  return _.find(state, { id: opId }).attributes;
+  return find(state, { id: opId }).attributes;
 }
 function updateOperation(state, opId, newSource) {
-  let targetOpIndex = _.findIndex(state, { id: opId });
+  let targetOpIndex = findIndex(state, { id: opId });
   let newOps = state.slice();
-  newOps[targetOpIndex] = _.assign({}, newOps[targetOpIndex], newSource);
+  newOps[targetOpIndex] = assign({}, newOps[targetOpIndex], newSource);
   return newOps;
 }
 function updateSigner(state, opId, newSource) {
-  let targetOpIndex = _.findIndex(state, { id: opId });
+  let targetOpIndex = findIndex(state, { id: opId });
   let newOps = state.slice();
-  newOps[targetOpIndex] = _.assign({}, newOps[targetOpIndex], newSource);
+  newOps[targetOpIndex] = assign({}, newOps[targetOpIndex], newSource);
   return newOps;
 }
 function reorderOps(state, opId, toNth) {
@@ -75,7 +84,7 @@ function reorderOps(state, opId, toNth) {
     toNth = state.length;
   }
   let ops = state.slice();
-  let targetOpIndex = _.findIndex(ops, { id: opId });
+  let targetOpIndex = findIndex(ops, { id: opId });
   let targetOp = ops[targetOpIndex];
   ops.splice(targetOpIndex, 1);
   ops.splice(toNth - 1, 0, targetOp);
@@ -85,25 +94,67 @@ function reorderOps(state, opId, toNth) {
 const defaultAttributes = {
   sourceAccount: '',
   sequence: '',
-  fee: '',
+  fee: BASE_FEE,
   memoType: '',
   memoContent: '',
   minTime: '',
   maxTime: '',
 };
+
 function attributes(state = defaultAttributes, action) {
   switch(action.type) {
   case LOAD_STATE:
     if (action.queryObj.params) {
-      return _.assign({}, defaultAttributes, rehydrate(action.queryObj.params).attributes);
+      return assign({}, defaultAttributes, rehydrate(action.queryObj.params).attributes);
     }
     break;
   case UPDATE_ATTRIBUTES:
     return Object.assign({}, state, action.newAttributes);
   case FETCH_SEQUENCE_SUCCESS:
     return Object.assign({}, state, { sequence: action.sequence });
+  case FETCH_BASE_FEE_SUCCESS:
+    return Object.assign({}, state, { fee: action.base_fee });
+  case FETCH_BASE_FEE_FAIL:
+    return Object.assign({}, state, { fee: defaultAttributes.fee });
   case RESET_TXBUILDER:
     return defaultAttributes;
+  }
+  return state;
+}
+
+const defaultFeeBumpAttributes = {
+  sourceAccount: '',
+  maxFee: BASE_FEE,
+  innerTxXDR: '',
+}
+
+function feeBumpAttributes(state = defaultFeeBumpAttributes, action) {
+  switch(action.type) {
+    case LOAD_STATE:
+      if (action.queryObj.params) {
+        return assign({}, defaultFeeBumpAttributes, rehydrate(action.queryObj.params).feeBumpAttributes);
+      }
+      break;
+    case UPDATE_FEE_BUMP_ATTRIBUTE:
+      return Object.assign({}, state, action.newAttribute);
+    case RESET_TXBUILDER:
+      return defaultFeeBumpAttributes;
+  }
+  return state;
+}
+
+function txType(state = TX_TYPES.REGULAR, action) {
+  switch(action.type) {
+    case LOAD_STATE:
+      if (action.queryObj.params) {
+        const prevTxType = rehydrate(action.queryObj.params).txType;
+        return [TX_TYPES.REGULAR, TX_TYPES.FEE_BUMP].indexOf(prevTxType) > -1 ? prevTxType : TX_TYPES.REGULAR;
+      }
+      break;
+    case UPDATE_TX_TYPE:
+      return action.txType;
+    case RESET_TXBUILDER:
+      return TX_TYPES.REGULAR;
   }
   return state;
 }
@@ -111,7 +162,7 @@ function attributes(state = defaultAttributes, action) {
 function sequenceFetcherError(state = '', action) {
   let payload = action.payload;
   if (action.type === FETCH_SEQUENCE_FAIL) {
-    if (payload.data.title === 'Resource Missing') {
+    if (payload.response.data.title === 'Resource Missing') {
       return `Account not found. Make sure the correct network is selected and the account is funded/created.`;
     }
     if (payload.status === 0) {
@@ -129,6 +180,8 @@ const transactionBuilder = combineReducers({
   attributes,
   operations,
   sequenceFetcherError,
+  txType,
+  feeBumpAttributes,
 })
 
 export default transactionBuilder

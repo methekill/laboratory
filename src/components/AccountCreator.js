@@ -6,12 +6,20 @@ import {
   updateFriendbotTarget,
   startFriendbotRequest,
 } from '../actions/accountCreator';
+import NETWORK from '../constants/network';
 import {CodeBlock} from './CodeBlock';
+import {addEventHandler} from '../utilities/metrics'
+import accountCreatorMetrics from '../metricsHandlers/accountCreator'
+
+addEventHandler(accountCreatorMetrics)
 
 class AccountCreator extends React.Component {
   render() {
     let {state, dispatch} = this.props;
     let keypairTable, keypairGeneratorLink, friendbotResultCodeblock;
+
+    const IS_TESTNET = this.props.baseURL === NETWORK.available.test.horizonURL;
+
     if (state.keypairGeneratorResult !== null) {
       keypairTable = <div className="simpleTable AccountCreator__generator__table">
         <div className="simpleTable__row">
@@ -24,17 +32,15 @@ class AccountCreator extends React.Component {
         </div>
       </div>
     }
-    if (state.keypairGeneratorPubKey !== '') {
+    if (state.keypairGeneratorPubKey !== '' && IS_TESTNET) {
       keypairGeneratorLink = <a onClick={() => dispatch(updateFriendbotTarget(state.keypairGeneratorPubKey))}>Fund this account on the test network using the friendbot tool below</a>
     }
     if (state.friendbotStatus.code) {
       friendbotResultCodeblock = <CodeBlock className="AccountCreator__spaceTop" code={state.friendbotStatus.code} language="json" />
     }
 
-
     let friendbotMessage;
     if (state.friendbotStatus.message) {
-
       let messageAlertType;
       if (state.friendbotStatus.status === 'loading') {
         messageAlertType = 's-alert--info';
@@ -61,27 +67,31 @@ class AccountCreator extends React.Component {
           {keypairGeneratorLink}
         </div>
       </div>
-      <div className="so-back AccountCreator__separator">
-      </div>
-      <div className="so-back AccountCreator__section">
-        <div className="so-chunk">
-          <h3>2. Friendbot: Fund a test network account</h3>
-          <p>The friendbot is a horizon API endpoint that will fund an account with 10,000 lumens on the test network.</p>
 
-          <PubKeyPicker
-            className="picker--spaceBottom"
-            value={state.friendbotTarget}
-            onUpdate={(accountId) => {
-              dispatch(updateFriendbotTarget(accountId))
-            }} />
-          <button className="s-button"
-            disabled={state.friendbotTarget.length === 0}
-            onClick={() => dispatch(startFriendbotRequest(state.friendbotTarget))}
-            >Get test network lumens</button>
-          {friendbotMessage}
-          {friendbotResultCodeblock}
+      {IS_TESTNET && (
+        <div>
+          <div className="so-back AccountCreator__separator"></div>
+          <div className="so-back AccountCreator__section">
+            <div className="so-chunk">
+              <h3>2. Friendbot: Fund a test network account</h3>
+              <p>The friendbot is a horizon API endpoint that will fund an account with 10,000 lumens on the test network.</p>
+
+              <PubKeyPicker
+                className="picker--spaceBottom"
+                value={state.friendbotTarget}
+                onUpdate={(accountId) => {
+                  dispatch(updateFriendbotTarget(accountId))
+                }} />
+              <button className="s-button"
+                disabled={state.friendbotTarget.length === 0}
+                onClick={() => dispatch(startFriendbotRequest(state.friendbotTarget))}
+                >Get test network lumens</button>
+              {friendbotMessage}
+              {friendbotResultCodeblock}
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   }
 }
@@ -90,5 +100,6 @@ export default connect(chooseState)(AccountCreator);
 function chooseState(state) {
   return {
     state: state.accountCreator,
+    baseURL: state.network.current.horizonURL,
   }
 }

@@ -11,7 +11,7 @@ describe('linkBuilder', () => {
   describe('txPostLink()', () => {
     it('returns the correct url', () => {
       expect(linkBuilder.txPostLink('AG/eK0AAAAAAA='))
-        .to.equal('#explorer?resource=transactions&endpoint=create&values=eyJ0eCI6IkFHL2VLMEFBQUFBQUE9In0%3D');
+        .to.equal('#txsubmitter?input=AG%2FeK0AAAAAAA%3D');
     });
   });
 
@@ -19,6 +19,13 @@ describe('linkBuilder', () => {
     it('returns the correct url', () => {
       expect(linkBuilder.xdrViewer('AG/eK0AAAAAAA=', 'TransactionEnvelope'))
         .to.equal('#xdr-viewer?input=AG%2FeK0AAAAAAA%3D&type=TransactionEnvelope');
+    });
+  });
+
+  describe('feeBumpTxLink()', () => {
+    it('returns the correct url', () => {
+      expect(linkBuilder.feeBumpTxLink('AG/eK0AAAAAAA='))
+        .to.equal('#txbuilder?params=eyJmZWVCdW1wQXR0cmlidXRlcyI6eyJpbm5lclR4WERSIjoiQUcvZUswQUFBQUFBQT0ifSwidHhUeXBlIjoiRkVFX0JVTVAifQ%3D%3D')
     });
   });
 

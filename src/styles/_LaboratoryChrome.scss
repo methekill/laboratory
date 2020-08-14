@@ -1,11 +1,35 @@
+/**
+ * @prettier
+ */
 .LaboratoryChrome__header {
   justify-content: space-between;
 }
 
 .LaboratoryChrome__siteNavBack {
-  border-top: 1px solid $s-color-neutral7;
-  border-bottom: 1px solid $s-color-neutral7;
   padding-top: 1.5em;
   padding-bottom: 1.5em;
-  background: $s-color-neutral8;
+  background: $lightestGray;
+}
+
+.LaboratoryChrome__network_reset_alert {
+  background-color: $black;
+  color: $white;
+  border-radius: 0;
+  border-bottom: 1px solid $white;
+  margin-bottom: -1px;
+}
+
+.spacer {
+  display: inline-block;
+  width: 2rem;
+  height: 1px;
+}
+
+.LaboratoryChrome__terms {
+  padding: 4rem 0;
+
+  a {
+    text-decoration: none;
+    color: $s-color-neutral3;
+  }
 }

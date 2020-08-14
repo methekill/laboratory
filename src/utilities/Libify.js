@@ -9,12 +9,15 @@
 // the best choice since source code differs based on content.
 
 import Sdk from 'stellar-sdk';
-import _ from 'lodash';
+import defaults from 'lodash/defaults';
+import each from 'lodash/each';
+import has from 'lodash/has';
+import isEmpty from 'lodash/isEmpty';
+import isString from 'lodash/isString';
+import isUndefined from 'lodash/isUndefined';
+import map from 'lodash/map';
 
 // Helpers
-let isEmpty = function(value) {
-  return _.isUndefined(value) || value === '' || value === null;
-}
 let isInt = function(value) {
   return String(value).match(/^[0-9]*$/g);
 }
@@ -49,7 +52,7 @@ let castIntOrUndefined = function(value) {
   if (typeof value === 'number') {
     return value;
   }
-  if (_.isString(value) && value.match(/^[0-9]+$/g)) {
+  if (isString(value) && value.match(/^[0-9]+$/g)) {
     return Number(value);
   }
   return undefined;
@@ -59,14 +62,14 @@ let castIntOrUndefined = function(value) {
 // 1. Is a string: return as is
 // 2. String is empty: converts to undefined (useful for optional arguments)
 let castStringOrUndefined = function(value) {
-  if (!_.isString(value) || value === '') {
+  if (!isString(value) || value === '') {
     return undefined;
   }
   return String(value);
 }
 
 let castStringOrNull = function(value) {
-  if (!_.isString(value) || value === '') {
+  if (!isString(value) || value === '') {
     return null;
   }
   return String(value);
@@ -102,7 +105,7 @@ Libify.Memo = function(opts) {
 Libify.Operation = function(type, opts) {
   assertNotEmpty(type, 'Operation type is required');
   let opFunction = Libify.Operation[type];
-  if (typeof opFunction === 'undefined' || _.has(Libify.Operation, 'opFunction')) {
+  if (typeof opFunction === 'undefined' || has(Libify.Operation, 'opFunction')) {
     throw new Error('Unknown operation type: ' + type);
   }
   return opFunction(opts);
@@ -130,21 +133,46 @@ Libify.Operation.payment = function(opts) {
   })
 }
 
-Libify.Operation.pathPayment = function(opts) {
-  assertNotEmpty(opts.sendAsset, 'Path Payment operation requires sending asset');
-  assertNotEmpty(opts.sendMax, 'Path Payment operation requires max send');
-  assertNotEmpty(opts.destination, 'Payment operation requires destination');
-  assertNotEmpty(opts.destAsset, 'Path Payment operation requires destination asset');
-  assertNotEmpty(opts.destAmount, 'Path Payment operation requires the destination amount');
+Libify.Operation.pathPaymentStrictSend = function(opts) {
+  assertNotEmpty(opts.sendAsset, 'Path Payment Strict Send operation requires sending asset');
+  assertNotEmpty(opts.sendAmount, 'Path Payment Strict Send operation requires send amount');
+  assertNotEmpty(opts.destination, 'Path Payment Strict Send operation requires destination');
+  assertNotEmpty(opts.destAsset, 'Path Payment Strict Send operation requires destination asset');
+  assertNotEmpty(opts.destMin, 'Path Payment Strict Send operation requires the minimum destination amount');
 
-  let libifiedPath = _.map(opts.path, (hopAsset) => {
-    if (_.isUndefined(hopAsset.type)) {
+  let libifiedPath = map(opts.path, (hopAsset) => {
+    if (isUndefined(hopAsset.type)) {
       throw new Error('All assets in path must be filled out');
     }
     return Libify.Asset(hopAsset);
   })
 
-  return Sdk.Operation.pathPayment({
+  return Sdk.Operation.pathPaymentStrictSend({
+    sendAsset: Libify.Asset(opts.sendAsset),
+    sendAmount: opts.sendAmount,
+    destination: opts.destination,
+    destAsset: Libify.Asset(opts.destAsset),
+    destMin: opts.destMin,
+    path: libifiedPath,
+    source: opts.sourceAccount,
+  })
+}
+
+Libify.Operation.pathPaymentStrictReceive = function(opts) {
+  assertNotEmpty(opts.sendAsset, 'Path Payment Strict Receive operation requires sending asset');
+  assertNotEmpty(opts.sendMax, 'Path Payment Strict Receive operation requires max send');
+  assertNotEmpty(opts.destination, 'Path Payment Strict Receive operation requires destination');
+  assertNotEmpty(opts.destAsset, 'Path Payment Strict Receive operation requires destination asset');
+  assertNotEmpty(opts.destAmount, 'Path Payment Strict Receive operation requires the destination amount');
+
+  let libifiedPath = map(opts.path, (hopAsset) => {
+    if (isUndefined(hopAsset.type)) {
+      throw new Error('All assets in path must be filled out');
+    }
+    return Libify.Asset(hopAsset);
+  })
+
+  return Sdk.Operation.pathPaymentStrictReceive({
     sendAsset: Libify.Asset(opts.sendAsset),
     sendMax: opts.sendMax,
     destination: opts.destination,
@@ -184,13 +212,13 @@ Libify.Operation.accountMerge = function(opts) {
   })
 }
 
-Libify.Operation.manageOffer = function(opts) {
-  assertNotEmpty(opts.selling, 'Manage Offer operation requires selling asset');
-  assertNotEmpty(opts.buying, 'Manage Offer operation requires buying asset');
-  assertNotEmpty(opts.amount, 'Manage Offer operation requires amount');
-  assertNotEmpty(opts.price, 'Manage Offer operation requires price');
-  assertNotEmpty(opts.offerId, 'Manage Offer operation requires Offer ID');
-  return Sdk.Operation.manageOffer({
+Libify.Operation.manageSellOffer = function(opts) {
+  assertNotEmpty(opts.selling, 'Manage Sell Offer operation requires selling asset');
+  assertNotEmpty(opts.buying, 'Manage Sell Offer operation requires buying asset');
+  assertNotEmpty(opts.amount, 'Manage Sell Offer operation requires amount');
+  assertNotEmpty(opts.price, 'Manage Sell Offer operation requires price');
+  assertNotEmpty(opts.offerId, 'Manage Sell Offer operation requires Offer ID');
+  return Sdk.Operation.manageSellOffer({
     selling: Libify.Asset(opts.selling),
     buying: Libify.Asset(opts.buying),
     amount: opts.amount,
@@ -200,22 +228,32 @@ Libify.Operation.manageOffer = function(opts) {
   })
 }
 
-Libify.Operation.createPassiveOffer = function(opts) {
-  assertNotEmpty(opts.selling, 'Create Passive Offer operation requires selling asset');
-  assertNotEmpty(opts.buying, 'Create Passive Offer operation requires buying asset');
-  assertNotEmpty(opts.amount, 'Create Passive Offer operation requires amount');
-  assertNotEmpty(opts.price, 'Create Passive Offer operation requires price');
-  return Sdk.Operation.createPassiveOffer({
+Libify.Operation.manageBuyOffer = function(opts) {
+  assertNotEmpty(opts.selling, 'Manage Buy Offer operation requires selling asset');
+  assertNotEmpty(opts.buying, 'Manage Buy Offer operation requires buying asset');
+  assertNotEmpty(opts.buyAmount, 'Manage Buy Offer operation requires buyAmount');
+  assertNotEmpty(opts.price, 'Manage Buy Offer operation requires price');
+  assertNotEmpty(opts.offerId, 'Manage Buy Offer operation requires Offer ID');
+  return Sdk.Operation.manageBuyOffer({
     selling: Libify.Asset(opts.selling),
     buying: Libify.Asset(opts.buying),
-    amount: opts.amount,
+    buyAmount: opts.buyAmount,
     price: opts.price,
+    offerId: opts.offerId,
     source: opts.sourceAccount,
   })
 }
 
-Libify.Operation.inflation = function(opts) {
-  return Sdk.Operation.inflation({
+Libify.Operation.createPassiveSellOffer = function(opts) {
+  assertNotEmpty(opts.selling, 'Create Passive Sell Offer operation requires selling asset');
+  assertNotEmpty(opts.buying, 'Create Passive Sell Offer operation requires buying asset');
+  assertNotEmpty(opts.amount, 'Create Passive Sell Offer operation requires amount');
+  assertNotEmpty(opts.price, 'Create Passive Sell Offer operation requires price');
+  return Sdk.Operation.createPassiveSellOffer({
+    selling: Libify.Asset(opts.selling),
+    buying: Libify.Asset(opts.buying),
+    amount: opts.amount,
+    price: opts.price,
     source: opts.sourceAccount,
   })
 }
@@ -294,8 +332,7 @@ Libify.Operation.bumpSequence = function(opts) {
 // buildTransaction is not something found js-stellar libs but acts as an
 // abstraction to building a transaction with input data in the same format
 // as the reducers
-Libify.buildTransaction = function(attributes, operations, networkObj) {
-  Sdk.Network.use(networkObj);
+Libify.buildTransaction = function(attributes, operations, networkPassphrase) {
   let result = {
     errors: [],
     xdr: '',
@@ -304,13 +341,15 @@ Libify.buildTransaction = function(attributes, operations, networkObj) {
   try {
     var account = new Sdk.Account(attributes.sourceAccount, Sdk.UnsignedHyper.fromString(attributes.sequence).subtract(1).toString());
 
-    let opts = {};
+    let opts = {
+      networkPassphrase
+    };
     if (attributes.fee !== '') {
       const MAX_UINT32 = Math.pow( 2, 32 ) - 1;
       if (parseInt(attributes.fee) > MAX_UINT32) {
         throw Error(`Base Fee: too large (invalid 32-bit unisigned integer)`);
       }
-      
+
       opts.fee = attributes.fee;
     }
 
@@ -324,14 +363,19 @@ Libify.buildTransaction = function(attributes, operations, networkObj) {
       timebounds.maxTime = attributes.maxTime;
     }
 
-    if (!_.isEmpty(timebounds)) {
-      opts.timebounds = _.defaults(timebounds, {
+    if (!isEmpty(timebounds)) {
+      opts.timebounds = defaults(timebounds, {
         minTime: '0',
         maxTime: '0'
       });
     }
 
     var transaction = new Sdk.TransactionBuilder(account, opts)
+
+    if (isEmpty(timebounds) ||
+      (opts.timebounds && opts.timebounds.maxTime == 0)) {
+      transaction.setTimeout(transaction.setTimeout(Sdk.TimeoutInfinite));
+    }
 
     if (attributes.memoType !== 'MEMO_NONE' && attributes.memoType !== '') {
       try {
@@ -344,7 +388,7 @@ Libify.buildTransaction = function(attributes, operations, networkObj) {
       }
     }
 
-    _.each(operations, (op, index) => {
+    each(operations, (op, index) => {
       try {
         transaction = transaction.addOperation(Libify.Operation(op.name, op.attributes));
       } catch(e) {
@@ -358,19 +402,59 @@ Libify.buildTransaction = function(attributes, operations, networkObj) {
   } catch(e) {
     result.errors.push(e.message);
   }
+  return result;
+}
 
+Libify.buildFeeBumpTransaction = function(attributes, networkPassphrase) {
+  const result = {
+    errors: [],
+    xdr: '',
+  }
+
+  const { innerTxXDR, maxFee, sourceAccount } = attributes;
+  let innerTx;
+  try {
+    innerTx = new Sdk.TransactionBuilder.fromXDR(innerTxXDR, networkPassphrase);
+  } catch(e) {
+    result.errors.push('Invalid inner transaction XDR.');
+    return result;
+  }
+
+  if (typeof innerTx.operations === 'undefined') {
+    result.errors.push('Inner transaction must be a regular transaction.')
+    return result;
+  }
+
+  let keyPair;
+  try {
+    keyPair = Sdk.Keypair.fromPublicKey(sourceAccount)
+  } catch(e){
+    result.errors.push(e.message);
+    return result;
+  }
+
+  let feeBumpTx;
+  try {
+    feeBumpTx = new Sdk.TransactionBuilder.buildFeeBumpTransaction(
+      keyPair,
+      maxFee,
+      innerTx,
+      networkPassphrase
+    );
+    result.xdr = feeBumpTx.toEnvelope().toXDR('base64');
+  } catch(e){
+    result.errors.push(e.message);
+  }
   return result;
 }
 
 
-Libify.signTransaction = function(txXdr, signers, networkObj, ledgerWalletSigs) {
-  Sdk.Network.use(networkObj);
-
+Libify.signTransaction = function(txXdr, signers, networkPassphrase, ledgerWalletSigs) {
   let validSecretKeys = [];
   let validPreimages = [];
   for (let i = 0; i < signers.length; i++) {
     let signer = signers[i];
-    if (signer !== null && !_.isUndefined(signer) && signer !== '') {
+    if (signer !== null && !isUndefined(signer) && signer !== '') {
       // Signer
       if (signer.charAt(0) == 'S') {
         if (!Sdk.StrKey.isValidEd25519SecretSeed(signer)) {
@@ -391,19 +475,19 @@ Libify.signTransaction = function(txXdr, signers, networkObj, ledgerWalletSigs) 
     }
   }
 
-  let newTx = new Sdk.Transaction(txXdr);
+  let newTx = Sdk.TransactionBuilder.fromXDR(txXdr, networkPassphrase);
   let existingSigs = newTx.signatures.length;
   let addedSigs = 0;
 
-  _.each(validSecretKeys, (signer) => {
+  each(validSecretKeys, (signer) => {
     addedSigs++;
     newTx.sign(Sdk.Keypair.fromSecret(signer));
   });
-  _.each(validPreimages, (signer) => {
+  each(validPreimages, (signer) => {
     addedSigs++;
     newTx.signHashX(Buffer.from(signer, 'hex'));
   });
-  _.each(ledgerWalletSigs, (ledgerSig) => {
+  each(ledgerWalletSigs, (ledgerSig) => {
     addedSigs++;
     newTx.signatures.push(ledgerSig);
   });
